@@ -1,6 +1,6 @@
 [project]
 name = "notebooklm-py"
-version = "0.3.3"
+version = "0.3.4"
 description = "Unofficial Python library for automating Google NotebookLM"
 dynamic = ["readme"]
 requires-python = ">=3.10"
@@ -44,6 +44,7 @@ dev = [
     "pytest-timeout>=2.3.0",
     "python-dotenv>=1.0.0",
     "mypy>=1.0.0",
+    "pre-commit>=4.5.1",
     "ruff>=0.4.0",
     "vcrpy>=6.0.0",
 ]
@@ -79,8 +80,13 @@ replacement = '](https://github.com/teng-lin/notebooklm-py/blob/v$HFPR_VERSION/S
 pattern = '\]\(LICENSE\)'
 replacement = '](https://github.com/teng-lin/notebooklm-py/blob/v$HFPR_VERSION/LICENSE)'
 
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\(SKILL\.md\)'
+replacement = '](https://github.com/teng-lin/notebooklm-py/blob/v$HFPR_VERSION/SKILL.md)'
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/notebooklm"]
+force-include = {"SKILL.md" = "notebooklm/data/SKILL.md", "AGENTS.md" = "notebooklm/data/CODEX.md"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

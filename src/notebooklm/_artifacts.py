@@ -29,6 +29,7 @@ from .rpc import (
     ExportType,
     InfographicDetail,
     InfographicOrientation,
+    InfographicStyle,
     QuizDifficulty,
     QuizQuantity,
     ReportFormat,
@@ -465,6 +466,69 @@ class ArtifactsAPI:
         ]
         return await self._call_generate(notebook_id, params)
 
+    async def generate_cinematic_video(
+        self,
+        notebook_id: str,
+        source_ids: builtins.list[str] | None = None,
+        language: str = "en",
+        instructions: str | None = None,
+    ) -> GenerationStatus:
+        """Generate a Cinematic Video Overview.
+
+        Cinematic videos use AI-generated documentary-style footage (Veo 3)
+        instead of the slide-deck animations used by standard video overviews.
+        They do not accept VideoStyle options.
+
+        Requires a Google AI Ultra subscription. Uses the same CREATE_ARTIFACT
+        RPC as standard videos with VideoFormat.CINEMATIC (3). Parameter
+        structure verified against NotebookLM web UI network traffic
+        (March 2026).
+
+        Note: Generation takes significantly longer than standard videos
+        (~30-40 minutes) due to Veo 3 rendering.
+
+        Args:
+            notebook_id: The notebook ID.
+            source_ids: Source IDs to include. If None, uses all sources.
+            language: Language code (default: "en").
+            instructions: Custom instructions for video generation.
+
+        Returns:
+            GenerationStatus with task_id for polling.
+        """
+        if source_ids is None:
+            source_ids = await self._core.get_source_ids(notebook_id)
+
+        source_ids_triple = [[[sid]] for sid in source_ids] if source_ids else []
+        source_ids_double = [[sid] for sid in source_ids] if source_ids else []
+
+        params = [
+            [2],
+            notebook_id,
+            [
+                None,
+                None,
+                ArtifactTypeCode.VIDEO.value,
+                source_ids_triple,
+                None,
+                None,
+                None,
+                None,
+                [
+                    None,
+                    None,
+                    [
+                        source_ids_double,
+                        language,
+                        instructions,
+                        None,
+                        VideoFormat.CINEMATIC.value,
+                    ],
+                ],
+            ],
+        ]
+        return await self._call_generate(notebook_id, params)
+
     async def generate_report(
         self,
         notebook_id: str,
@@ -712,6 +776,7 @@ class ArtifactsAPI:
         instructions: str | None = None,
         orientation: InfographicOrientation | None = None,
         detail_level: InfographicDetail | None = None,
+        style: InfographicStyle | None = None,
     ) -> GenerationStatus:
         """Generate an infographic.
 
@@ -722,6 +787,7 @@ class ArtifactsAPI:
             instructions: Custom instructions for infographic generation.
             orientation: LANDSCAPE, PORTRAIT, or SQUARE.
             detail_level: CONCISE, STANDARD, or DETAILED.
+            style: Visual style preset for the infographic.
 
         Returns:
             GenerationStatus with task_id for polling.
@@ -732,6 +798,7 @@ class ArtifactsAPI:
         source_ids_triple = [[[sid]] for sid in source_ids] if source_ids else []
         orientation_code = orientation.value if orientation else None
         detail_code = detail_level.value if detail_level else None
+        style_code = style.value if style else None
 
         params = [
             [2],
@@ -751,7 +818,7 @@ class ArtifactsAPI:
                 None,
                 None,
                 None,
-                [[instructions, language, None, orientation_code, detail_code]],
+                [[instructions, language, None, orientation_code, detail_code, style_code]],
             ],
         ]
         return await self._call_generate(notebook_id, params)
@@ -2084,6 +2151,12 @@ class ArtifactsAPI:
                         async for chunk in response.aiter_bytes(chunk_size=65536):
                             f.write(chunk)
                             total_bytes += len(chunk)
+
+                    if total_bytes == 0:
+                        raise ArtifactDownloadError(
+                            "media",
+                            details="Download produced 0 bytes -- the remote file may be missing or empty",
+                        )
 
                     # Only move to final location on success
                     temp_file.rename(output_file)
